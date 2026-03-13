@@ -125,6 +125,18 @@ class ScheduleRepository:
         await self.session.flush()
         return template
 
+    async def update_template_break(self, master_id: int, day_of_week: int, break_minutes: int) -> None:
+        result = await self.session.execute(
+            select(ScheduleTemplate).where(
+                ScheduleTemplate.master_id == master_id,
+                ScheduleTemplate.day_of_week == day_of_week,
+            )
+        )
+        template = result.scalar_one_or_none()
+        if template:
+            template.break_minutes = break_minutes
+            await self.session.flush()
+
     async def set_day_off(self, master_id: int, day_of_week: int) -> ScheduleTemplate:
         result = await self.session.execute(
             select(ScheduleTemplate).where(

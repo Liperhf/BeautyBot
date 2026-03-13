@@ -94,9 +94,11 @@ def admin_service_actions_keyboard(service_id: int, category_id: int, is_active:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def admin_confirm_delete_keyboard(confirm_data: str, cancel_data: str) -> InlineKeyboardMarkup:
+def admin_confirm_delete_keyboard(
+    confirm_data: str, cancel_data: str, confirm_text: str = "✅ Да, удалить"
+) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = [
-        [InlineKeyboardButton(text="✅ Да, удалить", callback_data=confirm_data),
+        [InlineKeyboardButton(text=confirm_text, callback_data=confirm_data),
          InlineKeyboardButton(text="◀ Нет", callback_data=cancel_data)],
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -125,6 +127,7 @@ def admin_dow_picker_keyboard() -> InlineKeyboardMarkup:
 def admin_day_actions_keyboard(dow: int, is_working: bool) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = [
         [InlineKeyboardButton(text="🕐 Задать часы работы", callback_data=f"admin:schedule:day:{dow}:set_hours")],
+        [InlineKeyboardButton(text="⏸ Перерыв между записями", callback_data=f"admin:schedule:day:{dow}:set_break")],
         [InlineKeyboardButton(text="🚫 Сделать выходным", callback_data=f"admin:schedule:day:{dow}:set_off")],
         [InlineKeyboardButton(text="◀ Назад", callback_data="admin:schedule:edit_day")],
     ]
@@ -179,16 +182,40 @@ def admin_about_keyboard() -> InlineKeyboardMarkup:
 
 # ── Existing list keyboard ────────────────────────────────────────────────────
 
-def admin_booking_list_keyboard(bookings: list, back_callback: str = "admin:bookings") -> InlineKeyboardMarkup:
-    from bot.utils.time_utils import format_time
+_BOOKING_PAGE_SIZE = 8
+
+
+def admin_booking_list_keyboard(
+    bookings: list, back_callback: str = "admin:bookings", page: int = 0
+) -> InlineKeyboardMarkup:
+    from bot.utils.time_utils import format_time, format_date
     builder = InlineKeyboardBuilder()
-    for b in bookings:
+
+    start = page * _BOOKING_PAGE_SIZE
+    end = start + _BOOKING_PAGE_SIZE
+    page_bookings = bookings[start:end]
+    total_pages = max(1, (len(bookings) + _BOOKING_PAGE_SIZE - 1) // _BOOKING_PAGE_SIZE)
+
+    # Encode mode from back_callback for pagination buttons
+    mode = "t" if back_callback == "admin:bookings:today" else "u"
+
+    for b in page_bookings:
         builder.button(
-            text=f"{format_time(b.start_time)} {b.client.display_name}",
+            text=f"{format_date(b.date)} {format_time(b.start_time)} — {b.client.display_name}",
             callback_data=f"admin:booking:{b.id}:view",
         )
-    builder.button(text="◀ Назад", callback_data=back_callback)
     builder.adjust(1)
+
+    if total_pages > 1:
+        nav = []
+        if page > 0:
+            nav.append(InlineKeyboardButton(text="◀ Пред.", callback_data=f"admin:bpg:{page-1}:{mode}"))
+        nav.append(InlineKeyboardButton(text=f"{page+1}/{total_pages}", callback_data="admin:bpg:noop"))
+        if end < len(bookings):
+            nav.append(InlineKeyboardButton(text="След. ▶", callback_data=f"admin:bpg:{page+1}:{mode}"))
+        builder.row(*nav)
+
+    builder.row(InlineKeyboardButton(text="◀ Назад", callback_data=back_callback))
     return builder.as_markup()
 
 

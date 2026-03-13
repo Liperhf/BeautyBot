@@ -130,6 +130,51 @@ async def schedule_day_view(callback: CallbackQuery, bot: Bot, session: AsyncSes
     await callback.answer()
 
 
+@router.callback_query(F.data.regexp(r"^admin:schedule:day:[0-6]:set_break$"))
+async def schedule_set_break_start(callback: CallbackQuery, state: FSMContext, bot: Bot) -> None:
+    dow = int(callback.data.split(":")[3])
+    await state.update_data(editing_dow=dow)
+    await state.set_state(AdminScheduleStates.waiting_break_minutes)
+    await message_manager.send_message(
+        bot=bot, chat_id=callback.message.chat.id,
+        text=(
+            f"Введите перерыв между записями для <b>{DAY_NAMES[dow]}</b> в минутах.\n\n"
+            "Например: <code>10</code> (0 — без перерыва):"
+        ),
+        reply_markup=admin_back_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.message(AdminScheduleStates.waiting_break_minutes, F.text)
+async def schedule_set_break_save(
+    message: Message, state: FSMContext, bot: Bot, session: AsyncSession
+) -> None:
+    await message_manager.delete_user_message(bot, message.chat.id, message.message_id)
+    text = message.text.strip()
+    if not text.isdigit() or int(text) < 0 or int(text) > 120:
+        await message_manager.send_message(
+            bot=bot, chat_id=message.chat.id,
+            text="Введите число минут от 0 до 120:",
+            reply_markup=admin_back_keyboard(),
+        )
+        return
+
+    data = await state.get_data()
+    dow = data.get("editing_dow")
+    break_minutes = int(text)
+    master_id = await get_admin_master_id(session)
+    if not master_id:
+        await state.clear()
+        return
+
+    await ScheduleRepository(session).update_template_break(master_id, dow, break_minutes)
+    await session.commit()
+    logger.info("Break minutes for day %d set to %d by admin", dow, break_minutes)
+    await state.clear()
+    await _show_schedule_overview(message.chat.id, bot, session)
+
+
 @router.callback_query(F.data.regexp(r"^admin:schedule:day:[0-6]:set_off$"))
 async def schedule_set_off(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
     dow = int(callback.data.split(":")[3])
@@ -166,7 +211,7 @@ async def schedule_set_hours_save(message: Message, state: FSMContext, bot: Bot,
     if not parsed:
         await message_manager.send_message(
             bot=bot, chat_id=message.chat.id,
-            text="Неверный формат. Введите часы в виде <b>ЧЧ:ММ-ЧЧ:ММ</b>, например <code>10:00-18:00</code>:",
+            text="Неверный формат. Введите часы в виде <b>ЧЧ:ММ-ЧЧ:ММ</b>, например <code>10:00-18:00</code>. Начало должно быть раньше конца:",
             reply_markup=admin_back_keyboard(),
         )
         return

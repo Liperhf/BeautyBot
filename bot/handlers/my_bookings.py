@@ -51,8 +51,9 @@ async def show_my_bookings(
 
     repo = BookingRepository(session)
     bookings = await repo.get_client_upcoming_bookings(client.id)
+    history = await repo.get_client_bookings_history(client.id, limit=3)
 
-    if not bookings:
+    if not bookings and not history:
         await message_manager.send_message(
             bot=bot,
             chat_id=callback.message.chat.id,
@@ -63,11 +64,16 @@ async def show_my_bookings(
         await callback.answer()
         return
 
+    parts = []
+    if bookings:
+        parts.append(f"<b>Предстоящие записи ({len(bookings)}):</b>")
+    if history:
+        parts.append("История — нажмите для повтора записи.")
     await message_manager.send_message(
         bot=bot,
         chat_id=callback.message.chat.id,
-        text=f"<b>Ваши предстоящие записи ({len(bookings)}):</b>\n\nНажмите на запись для подробностей.",
-        reply_markup=my_bookings_keyboard(bookings),
+        text="\n".join(parts) if parts else "Ваши записи:",
+        reply_markup=my_bookings_keyboard(bookings, history=history or None),
         force_new=True,
     )
     await callback.answer()
@@ -109,12 +115,19 @@ async def view_booking(
         f"{comment_line}"
     )
 
+    is_completed = booking.status == "completed"
+    can_cancel = booking.status == "confirmed"
     await message_manager.send_message(
         bot=bot,
         chat_id=callback.message.chat.id,
         text=text,
-        reply_markup=booking_detail_keyboard(booking_id, can_cancel=True),
+        reply_markup=booking_detail_keyboard(booking_id, can_cancel=can_cancel, is_completed=is_completed),
     )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "my_bookings_noop")
+async def my_bookings_noop(callback: CallbackQuery) -> None:
     await callback.answer()
 
 

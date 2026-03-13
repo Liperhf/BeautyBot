@@ -26,13 +26,12 @@ async def admin_stats(callback: CallbackQuery, bot: Bot, session: AsyncSession) 
     repo = StatsRepository(session)
     today = date.today()
 
-    status_counts, revenue, clients_count, monthly, top_services = (
-        await repo.get_status_counts(master_id),
-        await repo.get_total_revenue(master_id),
-        await repo.get_unique_clients_count(master_id),
-        await repo.get_monthly_stats(master_id, today.year, today.month),
-        await repo.get_top_services(master_id),
-    )
+    status_counts = await repo.get_status_counts(master_id)
+    revenue = await repo.get_total_revenue(master_id)
+    expected_revenue = await repo.get_expected_revenue(master_id)
+    clients_count = await repo.get_unique_clients_count(master_id)
+    monthly = await repo.get_monthly_stats(master_id, today.year, today.month)
+    top_services = await repo.get_top_services(master_id)
 
     total = sum(status_counts.values())
     completed = status_counts.get("completed", 0)
@@ -55,6 +54,7 @@ async def admin_stats(callback: CallbackQuery, bot: Bot, session: AsyncSession) 
         f"  🚫 Отменено: {cancelled}",
         f"  ❌ Неявки: {no_show}",
         f"  💰 Выручка: {int(revenue)} руб.",
+        f"  🔮 Ожидается: {int(expected_revenue)} руб.",
         f"  👥 Уникальных клиентов: {clients_count}",
         "",
         f"<b>{month_label}:</b>",
@@ -62,6 +62,7 @@ async def admin_stats(callback: CallbackQuery, bot: Bot, session: AsyncSession) 
         f"  ✅ Выполнено: {monthly['completed']}",
         f"  🚫 Отменено: {monthly['cancelled']}",
         f"  💰 Выручка: {int(monthly['revenue'])} руб.",
+        f"  🔮 Ожидается: {int(monthly['expected_revenue'])} руб.",
     ]
 
     if top_services:

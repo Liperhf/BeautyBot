@@ -73,13 +73,16 @@ class NotificationService:
         booking_date: date,
         booking_time: time,
         services: list[dict],
+        reason: str | None = None,
     ) -> None:
         services_text = ", ".join(s["name"] for s in services)
+        reason_line = f"\n💬 Причина: {reason}" if reason else ""
         text = (
             f"🚫 <b>Ваша запись отменена мастером.</b>\n\n"
             f"🧾 Услуги: {services_text}\n"
             f"📅 Дата: {format_date(booking_date)}\n"
-            f"⏰ Время: {format_time(booking_time)}\n\n"
+            f"⏰ Время: {format_time(booking_time)}"
+            f"{reason_line}\n\n"
             f"Для повторной записи воспользуйтесь ботом."
         )
         await self._send(client_telegram_id, text)

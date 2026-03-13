@@ -218,21 +218,35 @@ async def category_toggle(callback: CallbackQuery, bot: Bot, session: AsyncSessi
 @router.callback_query(F.data.regexp(r"^admin:cat:\d+:delete$"))
 async def category_delete_confirm(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> None:
     cat_id = int(callback.data.split(":")[2])
-    count = await ServiceRepository(session).count_services_in_category(cat_id)
-    if count > 0:
-        await callback.answer(
-            f"Нельзя удалить: в категории {count} усл. Сначала удалите услуги.",
-            show_alert=True,
-        )
+    repo = ServiceRepository(session)
+    cat = await repo.get_category_by_id(cat_id)
+    if not cat:
+        await callback.answer("Категория не найдена.", show_alert=True)
         return
-    await message_manager.send_message(
-        bot=bot, chat_id=callback.message.chat.id,
-        text="Удалить эту категорию? Действие необратимо.",
-        reply_markup=admin_confirm_delete_keyboard(
-            confirm_data=f"admin:cat:{cat_id}:delete_ok",
-            cancel_data=f"admin:cat:{cat_id}:view",
-        ),
-    )
+    count = await repo.count_services_in_category(cat_id)
+    if count > 0:
+        await message_manager.send_message(
+            bot=bot, chat_id=callback.message.chat.id,
+            text=(
+                f"⚠️ <b>Удаление категории «{cat.name}»</b>\n\n"
+                f"В категории <b>{count} услуг</b>. Для удаления категории сначала удалите все услуги.\n\n"
+                f"Перейти к списку услуг?"
+            ),
+            reply_markup=admin_confirm_delete_keyboard(
+                confirm_data=f"admin:cat:{cat_id}:services",
+                cancel_data=f"admin:cat:{cat_id}:view",
+                confirm_text="📋 Перейти к услугам",
+            ),
+        )
+    else:
+        await message_manager.send_message(
+            bot=bot, chat_id=callback.message.chat.id,
+            text=f"🗑 Удалить категорию «{cat.name}»? Действие необратимо.",
+            reply_markup=admin_confirm_delete_keyboard(
+                confirm_data=f"admin:cat:{cat_id}:delete_ok",
+                cancel_data=f"admin:cat:{cat_id}:view",
+            ),
+        )
     await callback.answer()
 
 

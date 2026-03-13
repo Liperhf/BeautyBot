@@ -26,6 +26,14 @@ class StatsRepository:
         )
         return result.scalar() or Decimal(0)
 
+    async def get_expected_revenue(self, master_id: int) -> Decimal:
+        """Sum of confirmed (upcoming) bookings — expected revenue."""
+        result = await self.session.execute(
+            select(func.coalesce(func.sum(Booking.total_price), 0))
+            .where(Booking.master_id == master_id, Booking.status == "confirmed")
+        )
+        return result.scalar() or Decimal(0)
+
     async def get_unique_clients_count(self, master_id: int) -> int:
         result = await self.session.execute(
             select(func.count(func.distinct(Booking.client_id)))
@@ -63,6 +71,15 @@ class StatsRepository:
                 Booking.date < last_day,
             )
         )
+        expected = await self.session.execute(
+            select(func.coalesce(func.sum(Booking.total_price), 0))
+            .where(
+                Booking.master_id == master_id,
+                Booking.status == "confirmed",
+                Booking.date >= first_day,
+                Booking.date < last_day,
+            )
+        )
         return {
             "confirmed": status_map.get("confirmed", 0),
             "completed": status_map.get("completed", 0),
@@ -72,6 +89,7 @@ class StatsRepository:
             ),
             "no_show": status_map.get("no_show", 0),
             "revenue": revenue.scalar() or Decimal(0),
+            "expected_revenue": expected.scalar() or Decimal(0),
         }
 
     async def get_top_services(self, master_id: int, limit: int = 5) -> list[tuple[str, int]]:

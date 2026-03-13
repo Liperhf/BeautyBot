@@ -41,6 +41,22 @@ class BookingRepository:
         )
         return list(result.scalars().all())
 
+    async def get_client_bookings_history(self, client_id: int, limit: int = 5) -> list[Booking]:
+        """Recent completed bookings — used for the 'Записаться снова' feature."""
+        result = await self.session.execute(
+            select(Booking)
+            .where(
+                Booking.client_id == client_id,
+                Booking.status == "completed",
+            )
+            .options(
+                selectinload(Booking.booking_services).selectinload(BookingService.service),
+            )
+            .order_by(Booking.date.desc(), Booking.start_time.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
     async def get_booking_by_id(self, booking_id: int) -> Booking | None:
         result = await self.session.execute(
             select(Booking)
@@ -52,6 +68,28 @@ class BookingRepository:
             )
         )
         return result.scalar_one_or_none()
+
+    async def _check_overlap_for_update(
+        self,
+        master_id: int,
+        booking_date: date,
+        start_time: time,
+        end_time: time,
+    ) -> bool:
+        """Lock overlapping confirmed bookings via SELECT FOR UPDATE.
+        Returns True if any overlap exists (slot is taken)."""
+        result = await self.session.execute(
+            select(Booking)
+            .where(
+                Booking.master_id == master_id,
+                Booking.date == booking_date,
+                Booking.status == "confirmed",
+                Booking.start_time < end_time,
+                Booking.end_time > start_time,
+            )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none() is not None
 
     async def create_booking(
         self,
@@ -65,6 +103,10 @@ class BookingRepository:
         comment: str | None,
         services: list[dict],
     ) -> Booking:
+        # Race-condition guard: lock overlapping rows before inserting
+        if await self._check_overlap_for_update(master_id, booking_date, start_time, end_time):
+            raise ValueError("Slot is already taken")
+
         booking = Booking(
             client_id=client_id,
             master_id=master_id,
