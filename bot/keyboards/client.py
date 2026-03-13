@@ -122,33 +122,20 @@ def confirm_booking_keyboard() -> InlineKeyboardMarkup:
 
 # ── My bookings ───────────────────────────────────────────────────────────────
 
-def my_bookings_keyboard(
-    bookings: list, history: list | None = None
-) -> InlineKeyboardMarkup:
+def my_bookings_keyboard(bookings: list) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     for booking in bookings:
-        label = f"📅 {format_date(booking.date)} {format_time(booking.start_time)}–{format_time(booking.end_time)}"
+        label = f"{format_date(booking.date)} {format_time(booking.start_time)}"
         rows.append([InlineKeyboardButton(text=label, callback_data=f"booking:{booking.id}:view")])
-    if history:
-        rows.append([InlineKeyboardButton(text="— История —", callback_data="my_bookings_noop")])
-        for booking in history:
-            label = f"✅ {format_date(booking.date)} {format_time(booking.start_time)}"
-            rows.append([InlineKeyboardButton(text=label, callback_data=f"booking:{booking.id}:view")])
     rows.append([InlineKeyboardButton(text="🏠 В главное меню", callback_data="menu")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def booking_detail_keyboard(
-    booking_id: int, can_cancel: bool = True, is_completed: bool = False
-) -> InlineKeyboardMarkup:
+def booking_detail_keyboard(booking_id: int, can_cancel: bool = True) -> InlineKeyboardMarkup:
     rows: list[list[InlineKeyboardButton]] = []
     if can_cancel:
         rows.append([InlineKeyboardButton(
             text="🚫 Отменить эту запись", callback_data=f"booking:{booking_id}:cancel"
-        )])
-    if is_completed:
-        rows.append([InlineKeyboardButton(
-            text="🔄 Записаться снова", callback_data=f"booking:{booking_id}:repeat"
         )])
     rows.append(_nav_row(("◀ К списку записей", "my_bookings"), ("🏠 Меню", "menu")))
     return InlineKeyboardMarkup(inline_keyboard=rows)

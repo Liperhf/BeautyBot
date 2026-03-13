@@ -1,9 +1,7 @@
 from datetime import date, time, timedelta, datetime
-from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.config import settings
 from bot.db.repositories.schedule_repo import ScheduleRepository
 from bot.db.repositories.booking_repo import BookingRepository
 
@@ -14,17 +12,11 @@ class ScheduleService:
         self._schedule_repo = ScheduleRepository(session)
         self._booking_repo = BookingRepository(session)
 
-    def _now_local(self) -> datetime:
-        return datetime.now(ZoneInfo(settings.TIMEZONE))
-
-    def _today_local(self) -> date:
-        return self._now_local().date()
-
     async def get_available_dates(
         self, master_id: int, duration_minutes: int, days_ahead: int = 21
     ) -> list[date]:
         available: list[date] = []
-        today = self._today_local()
+        today = date.today()
         for i in range(days_ahead):
             check_date = today + timedelta(days=i)
             slots = await self.get_available_slots(master_id, check_date, duration_minutes)
@@ -42,7 +34,6 @@ class ScheduleService:
             start_time = exception.start_time
             end_time = exception.end_time
             slot_interval = 30
-            break_minutes = 0
         else:
             template = await self._schedule_repo.get_template_for_day(
                 master_id, check_date.weekday()
@@ -52,20 +43,18 @@ class ScheduleService:
             start_time = template.start_time
             end_time = template.end_time
             slot_interval = template.slot_interval_minutes
-            break_minutes = template.break_minutes
 
         all_slots = self._generate_slots(start_time, end_time, slot_interval, duration_minutes)
         existing = await self._booking_repo.get_bookings_for_date(master_id, check_date)
-        now = self._now_local()
+        now = datetime.now()
 
         available: list[time] = []
         for slot in all_slots:
-            if check_date == self._today_local():
-                slot_dt = datetime.combine(check_date, slot, tzinfo=ZoneInfo(settings.TIMEZONE))
-                if slot_dt <= now:
+            if check_date == date.today():
+                if datetime.combine(check_date, slot) <= now:
                     continue
             slot_end = self._add_minutes(slot, duration_minutes)
-            if not self._has_conflict(slot, slot_end, existing, break_minutes):
+            if not self._has_conflict(slot, slot_end, existing):
                 available.append(slot)
         return available
 
@@ -92,11 +81,8 @@ class ScheduleService:
         return dt.time()
 
     @staticmethod
-    def _has_conflict(start: time, end: time, bookings: list, break_minutes: int = 0) -> bool:
+    def _has_conflict(start: time, end: time, bookings: list) -> bool:
         for b in bookings:
-            b_end_with_break = (
-                datetime.combine(date.today(), b.end_time) + timedelta(minutes=break_minutes)
-            ).time()
-            if start < b_end_with_break and end > b.start_time:
+            if start < b.end_time and end > b.start_time:
                 return True
         return False

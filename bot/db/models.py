@@ -67,7 +67,6 @@ class ScheduleTemplate(Base):
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
     slot_interval_minutes = Column(Integer, default=30)
-    break_minutes = Column(Integer, default=0)
     is_working = Column(Boolean, default=True)
 
     master = relationship("Master", back_populates="schedule_templates")
@@ -145,7 +144,7 @@ class GalleryPhoto(Base):
     id = Column(Integer, primary_key=True)
     master_id = Column(Integer, ForeignKey("masters.id"), nullable=False)
     file_id = Column(String(200), nullable=False)
-    caption = Column(String(500))
+    caption = Column(String(200))
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

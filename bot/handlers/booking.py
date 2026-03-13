@@ -1,4 +1,3 @@
-import html
 import logging
 import re
 from datetime import date, time, datetime, timedelta
@@ -65,7 +64,7 @@ async def _show_categories(
     service_repo = ServiceRepository(session)
     categories = await service_repo.get_active_categories(master_id)
 
-    header = f"👤 {html.escape(str(data.get('name', '')))}  📞 {html.escape(str(data.get('phone', '')))}\n\n"
+    header = f"👤 {data.get('name')}  📞 {data.get('phone')}\n\n"
     if selected:
         header += f"<b>Уже выбрано:</b> {len(selected)} усл. на {int(sum(s['price'] for s in selected))} руб.\n\n"
     header += "<b>Выберите группу услуг:</b>"
@@ -139,7 +138,7 @@ async def process_name(message: Message, state: FSMContext, bot: Bot) -> None:
     await message_manager.send_message(
         bot=bot,
         chat_id=message.chat.id,
-        text=f"Ваше имя: <b>{html.escape(name)}</b>\n\n<b>Введите номер телефона</b> (пример: +375441234567) ➡️",
+        text=f"Ваше имя: <b>{name}</b>\n\n<b>Введите номер телефона</b> (пример: +375297773322) ➡️",
         reply_markup=phone_step_keyboard(),
     )
 
@@ -171,8 +170,8 @@ async def process_phone(
             bot=bot,
             chat_id=message.chat.id,
             text=(
-                f"Ваше имя: <b>{html.escape(str(data.get('name', '')))}</b>\n\n"
-                "Неверный формат. Введите телефон в формате <b>+375441234567</b> ➡️"
+                f"Ваше имя: <b>{data.get('name')}</b>\n\n"
+                "Неверный формат. Введите телефон в формате <b>+375297773322</b> ➡️"
             ),
             reply_markup=phone_step_keyboard(),
         )
@@ -314,14 +313,6 @@ async def process_comment(
 ) -> None:
     comment = message.text.strip() if message.text else ""
     await message_manager.delete_user_message(bot, message.chat.id, message.message_id)
-    if len(comment) > 500:
-        await message_manager.send_message(
-            bot=bot,
-            chat_id=message.chat.id,
-            text=f"Комментарий слишком длинный ({len(comment)} симв.). Максимум — 500 символов:",
-            reply_markup=comment_step_keyboard(),
-        )
-        return
     await state.update_data(comment=comment)
     await _show_dates(message.chat.id, state, bot, session)
 
@@ -468,8 +459,8 @@ async def choose_time(callback: CallbackQuery, state: FSMContext, bot: Bot) -> N
 
     text = (
         f"📋 <b>Подтвердите запись:</b>\n\n"
-        f"👤 Имя: {html.escape(str(data.get('name', '')))}\n"
-        f"📞 Телефон: {html.escape(str(data.get('phone', '')))}\n\n"
+        f"👤 Имя: {data.get('name')}\n"
+        f"📞 Телефон: {data.get('phone')}\n\n"
         f"🧾 Услуги:\n{svc_lines}\n\n"
         f"⏱ Продолжительность: {format_duration(total_duration)}\n"
         f"💳 Стоимость: {int(total_price)} руб.\n"
@@ -477,7 +468,7 @@ async def choose_time(callback: CallbackQuery, state: FSMContext, bot: Bot) -> N
         f"⏰ Время: {time_str}\n"
     )
     if comment:
-        text += f"💬 Комментарий: {html.escape(comment)}\n"
+        text += f"💬 Комментарий: {comment}\n"
     text += "\n<b>Всё верно?</b>"
 
     await state.set_state(BookingStates.confirming)
@@ -547,30 +538,19 @@ async def confirm_booking(
             phone=data.get("phone"),
         )
 
-    # Create booking (SELECT FOR UPDATE inside prevents race conditions)
+    # Create booking
     booking_repo = BookingRepository(session)
-    try:
-        booking = await booking_repo.create_booking(
-            client_id=client.id,
-            master_id=master_id,
-            booking_date=booking_date,
-            start_time=booking_time,
-            end_time=end_time,
-            total_price=total_price,
-            total_duration=total_duration,
-            comment=data.get("comment") or None,
-            services=[{"id": s["id"], "price": s["price"], "duration": s["duration"]} for s in selected],
-        )
-    except ValueError:
-        await message_manager.send_message(
-            bot=bot,
-            chat_id=callback.message.chat.id,
-            text="Этот слот только что заняли. Пожалуйста, выберите другое время.",
-            reply_markup=back_to_menu_keyboard(),
-        )
-        await state.clear()
-        await callback.answer()
-        return
+    booking = await booking_repo.create_booking(
+        client_id=client.id,
+        master_id=master_id,
+        booking_date=booking_date,
+        start_time=booking_time,
+        end_time=end_time,
+        total_price=total_price,
+        total_duration=total_duration,
+        comment=data.get("comment") or None,
+        services=[{"id": s["id"], "price": s["price"], "duration": s["duration"]} for s in selected],
+    )
     await session.commit()
     logger.info(
         "Booking #%d created: client=%d master=%d date=%s time=%s",
@@ -636,47 +616,4 @@ async def back_to_time(
         text=f"<b>Выберите время</b> для записи на <b>{format_date(booking_date)}</b> ➡️",
         reply_markup=times_keyboard(available_times),
     )
-    await callback.answer()
-
-
-# ── Repeat booking ────────────────────────────────────────────────────────────
-
-@router.callback_query(F.data.regexp(r"^booking:\d+:repeat$"))
-async def repeat_booking(
-    callback: CallbackQuery, state: FSMContext, bot: Bot, session: AsyncSession
-) -> None:
-    booking_id = int(callback.data.split(":")[1])
-    repo = BookingRepository(session)
-    booking = await repo.get_booking_by_id(booking_id)
-
-    if not booking or booking.client.telegram_id != callback.from_user.id:
-        await callback.answer("Запись не найдена.", show_alert=True)
-        return
-
-    from bot.db.repositories.service_repo import ServiceRepository as _SR
-    svc_repo = _SR(session)
-    services = []
-    for bs in booking.booking_services:
-        svc = await svc_repo.get_service_by_id(bs.service_id)
-        if svc and svc.is_active:
-            services.append({
-                "id": svc.id,
-                "name": svc.name,
-                "price": float(bs.price_at_booking),
-                "duration": bs.duration_at_booking,
-            })
-
-    if not services:
-        await callback.answer("Услуги из этой записи больше недоступны.", show_alert=True)
-        return
-
-    await state.clear()
-    await state.update_data(
-        master_id=booking.master_id,
-        selected_services=services,
-        name=booking.client.display_name,
-        phone=booking.client.phone,
-        client_exists=True,
-    )
-    await _show_dates(callback.message.chat.id, state, bot, session)
     await callback.answer()

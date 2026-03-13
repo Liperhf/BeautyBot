@@ -16,10 +16,7 @@ async def send_morning_report(bot: Bot, session_pool: async_sessionmaker) -> Non
     from bot.db.models import Master
     from bot.db.repositories.booking_repo import BookingRepository
     from bot.utils.time_utils import format_time, format_duration
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-
-    today_local = datetime.now(ZoneInfo(settings.TIMEZONE)).date()
+    from datetime import date
 
     async with session_pool() as session:
         result = await session.execute(
@@ -29,7 +26,7 @@ async def send_morning_report(bot: Bot, session_pool: async_sessionmaker) -> Non
 
         for master in masters:
             repo = BookingRepository(session)
-            bookings = await repo.get_bookings_for_date_detailed(master.id, today_local)
+            bookings = await repo.get_bookings_for_date_detailed(master.id, date.today())
 
             if not bookings:
                 text = "📅 <b>Записи на сегодня:</b>\n\nЗаписей нет. Свободный день!"

@@ -14,7 +14,6 @@ class AdminScheduleStates(StatesGroup):
     waiting_exception_date = State()
     waiting_exception_reason = State()
     waiting_custom_hours = State()
-    waiting_break_minutes = State()
 
 
 class AdminMasterStates(StatesGroup):
@@ -27,7 +26,3 @@ class AdminMasterStates(StatesGroup):
 
 class AdminGalleryStates(StatesGroup):
     waiting_photo = State()
-
-
-class AdminBookingStates(StatesGroup):
-    waiting_cancel_reason = State()
