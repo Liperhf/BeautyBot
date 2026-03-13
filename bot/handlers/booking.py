@@ -138,7 +138,7 @@ async def process_name(message: Message, state: FSMContext, bot: Bot) -> None:
     await message_manager.send_message(
         bot=bot,
         chat_id=message.chat.id,
-        text=f"Ваше имя: <b>{name}</b>\n\n<b>Введите номер телефона</b> (пример: +375297773322) ➡️",
+        text=f"Ваше имя: <b>{name}</b>\n\n<b>Введите номер телефона</b> (пример: +375297774433) ➡️",
         reply_markup=phone_step_keyboard(),
     )
 
