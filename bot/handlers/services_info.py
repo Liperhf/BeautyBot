@@ -33,6 +33,7 @@ async def show_categories(callback: CallbackQuery, bot: Bot, session: AsyncSessi
             bot=bot, chat_id=callback.message.chat.id,
             text="✨ <b>Услуги и цены</b>\n\nСписок услуг пока не заполнен.",
             reply_markup=back_to_menu_keyboard(),
+            force_new=True,
         )
         await callback.answer()
         return
@@ -40,6 +41,7 @@ async def show_categories(callback: CallbackQuery, bot: Bot, session: AsyncSessi
         bot=bot, chat_id=callback.message.chat.id,
         text="✨ <b>Услуги и цены</b>\n\nВыберите категорию:",
         reply_markup=services_info_categories_keyboard(categories),
+        force_new=True,
     )
     await callback.answer()
 

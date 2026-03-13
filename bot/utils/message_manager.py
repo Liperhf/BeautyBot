@@ -30,12 +30,13 @@ class MessageManager:
         text: str,
         reply_markup: InlineKeyboardMarkup | None = None,
         parse_mode: str | None = "HTML",
+        force_new: bool = False,
         **kwargs,
     ):
         prev_id = self._last.get(chat_id)
         prev_is_photo = self._last_is_photo.get(chat_id, False)
 
-        if prev_id and not prev_is_photo:
+        if prev_id and not prev_is_photo and not force_new:
             # Previous message was text — attempt edit in place
             if await self._try_edit_text(bot, chat_id, prev_id, text, reply_markup, parse_mode):
                 self._last_is_photo[chat_id] = False

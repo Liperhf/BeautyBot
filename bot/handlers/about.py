@@ -26,6 +26,7 @@ async def about_master(callback: CallbackQuery, bot: Bot, session: AsyncSession)
             bot=bot, chat_id=callback.message.chat.id,
             text="🌸 <b>О мастере</b>\n\nИнформация пока не заполнена.",
             reply_markup=back_to_menu_keyboard(),
+            force_new=True,
         )
         await callback.answer()
         return
@@ -45,6 +46,7 @@ async def about_master(callback: CallbackQuery, bot: Bot, session: AsyncSession)
             bot=bot, chat_id=callback.message.chat.id,
             text=text,
             reply_markup=back_to_menu_keyboard(),
+            force_new=True,
         )
     await callback.answer()
 
@@ -66,5 +68,6 @@ async def contacts(callback: CallbackQuery, bot: Bot, session: AsyncSession) -> 
         bot=bot, chat_id=callback.message.chat.id,
         text="\n".join(lines),
         reply_markup=back_to_menu_keyboard(),
+        force_new=True,
     )
     await callback.answer()

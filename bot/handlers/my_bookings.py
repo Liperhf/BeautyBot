@@ -44,6 +44,7 @@ async def show_my_bookings(
             chat_id=callback.message.chat.id,
             text="У вас ещё нет записей. Нажмите «Записаться на услугу».",
             reply_markup=back_to_menu_keyboard(),
+            force_new=True,
         )
         await callback.answer()
         return
@@ -57,6 +58,7 @@ async def show_my_bookings(
             chat_id=callback.message.chat.id,
             text="У вас нет активных записей.",
             reply_markup=back_to_menu_keyboard(),
+            force_new=True,
         )
         await callback.answer()
         return
@@ -66,6 +68,7 @@ async def show_my_bookings(
         chat_id=callback.message.chat.id,
         text=f"<b>Ваши предстоящие записи ({len(bookings)}):</b>\n\nНажмите на запись для подробностей.",
         reply_markup=my_bookings_keyboard(bookings),
+        force_new=True,
     )
     await callback.answer()
 
@@ -173,6 +176,7 @@ async def confirm_cancel_booking(
         chat_id=callback.message.chat.id,
         text="✅ Запись успешно отменена.",
         reply_markup=main_menu_keyboard(is_admin=is_admin_user(callback.from_user.id)),
+        force_new=True,
     )
 
     notification = NotificationService(bot)

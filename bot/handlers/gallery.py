@@ -36,6 +36,7 @@ async def show_gallery(callback: CallbackQuery, bot: Bot, session: AsyncSession)
             bot=bot, chat_id=callback.message.chat.id,
             text="🖼 <b>Фотогалерея</b>\n\nФотографии пока не добавлены.",
             reply_markup=back_to_menu_keyboard(),
+            force_new=True,
         )
         await callback.answer()
         return

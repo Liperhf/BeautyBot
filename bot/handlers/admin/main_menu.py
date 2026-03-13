@@ -34,6 +34,7 @@ async def admin_menu(callback: CallbackQuery, state: FSMContext, bot: Bot) -> No
         chat_id=callback.message.chat.id,
         text="⚙️ <b>Админ-панель</b>\n\nВыберите раздел:",
         reply_markup=admin_main_keyboard(),
+        force_new=True,
     )
     await callback.answer()
 

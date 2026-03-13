@@ -56,7 +56,8 @@ def _services_summary(selected: list[dict]) -> tuple[str, float, int]:
 
 
 async def _show_categories(
-    chat_id: int, state: FSMContext, bot: Bot, session: AsyncSession, master_id: int
+    chat_id: int, state: FSMContext, bot: Bot, session: AsyncSession, master_id: int,
+    force_new: bool = False,
 ) -> None:
     data = await state.get_data()
     selected = data.get("selected_services", [])
@@ -74,6 +75,7 @@ async def _show_categories(
         chat_id=chat_id,
         text=header,
         reply_markup=categories_keyboard(categories),
+        force_new=force_new,
     )
 
 
@@ -94,7 +96,7 @@ async def booking_start(
         await state.update_data(
             name=client.display_name, phone=client.phone, client_exists=True
         )
-        await _show_categories(callback.message.chat.id, state, bot, session, master_id)
+        await _show_categories(callback.message.chat.id, state, bot, session, master_id, force_new=True)
     else:
         await state.set_state(BookingStates.waiting_name)
         await message_manager.send_message(
@@ -102,6 +104,7 @@ async def booking_start(
             chat_id=callback.message.chat.id,
             text="Для записи мне нужны ваши данные.\n\n<b>Введите ваше имя</b> ➡️",
             reply_markup=name_step_keyboard(),
+            force_new=True,
         )
     await callback.answer()
 
@@ -569,6 +572,7 @@ async def confirm_booking(
         chat_id=callback.message.chat.id,
         text=success_text,
         reply_markup=main_menu_keyboard(is_admin=is_admin_user(callback.from_user.id)),
+        force_new=True,
     )
 
     # Notify master

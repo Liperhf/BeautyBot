@@ -34,6 +34,7 @@ async def cmd_start(message: Message, state: FSMContext, bot: Bot) -> None:
         chat_id=message.chat.id,
         text=WELCOME_TEXT,
         reply_markup=main_menu_keyboard(is_admin=is_admin_user(message.from_user.id)),
+        force_new=True,
     )
 
 
@@ -45,6 +46,7 @@ async def to_main_menu(callback: CallbackQuery, state: FSMContext, bot: Bot) -> 
         chat_id=callback.message.chat.id,
         text="Главное меню. Выберите действие:",
         reply_markup=main_menu_keyboard(is_admin=is_admin_user(callback.from_user.id)),
+        force_new=True,
     )
     await callback.answer()
 
@@ -60,5 +62,6 @@ async def stale_callback(callback: CallbackQuery, state: FSMContext, bot: Bot) -
         chat_id=callback.message.chat.id,
         text="⚠️ Сессия устарела. Вы в главном меню.",
         reply_markup=main_menu_keyboard(is_admin=is_admin_user(callback.from_user.id)),
+        force_new=True,
     )
     await callback.answer()
